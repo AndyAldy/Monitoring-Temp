@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:monitoring_tempe/widgets/sensor_card.dart';
 
 class HomePage extends StatelessWidget {
+  final Function(bool) onToggleKipas;
   final bool isOnline;
   final double suhu;
   final double kelembapan;
@@ -13,6 +14,7 @@ class HomePage extends StatelessWidget {
     required this.suhu,
     required this.kelembapan,
     required this.isKipasNyala,
+    required this.onToggleKipas,
   });
 
   @override
@@ -156,14 +158,14 @@ class HomePage extends StatelessWidget {
                     ),
                   ],
                 ),
-                Text(
-                  isKipasNyala ? 'ON' : 'OFF',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                Switch(
+                  value: isKipasNyala,
+                  activeColor: Colors.white,
+                  activeTrackColor: Colors.teal.shade700,
+                  onChanged: (value) {
+                    onToggleKipas(value); // Panggil fungsi toggle manual
+                    },
                   ),
-                ),
               ],
             ),
           ),

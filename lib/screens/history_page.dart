@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 class HistoryPage extends StatelessWidget {
-  // Parameter ini wajib ada untuk menerima data
   final List<Map<String, dynamic>> riwayatData;
+  final VoidCallback onDeleteAll; // Tambahkan callback untuk fungsi hapus
 
   const HistoryPage({
     super.key,
     required this.riwayatData,
+    required this.onDeleteAll, // Wajib diisi
   });
 
   @override
@@ -27,46 +28,72 @@ class HistoryPage extends StatelessWidget {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: riwayatData.length,
-      itemBuilder: (context, index) {
-        final data = riwayatData[index];
-        return Card(
-          elevation: 0,
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.shade200),
+    return Column(
+      children: [
+        // --- HEADER TOMBOL HAPUS ---
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 10, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total: ${riwayatData.length} Log',
+                style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+              ),
+              TextButton.icon(
+                onPressed: onDeleteAll,
+                icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
+                label: const Text('Hapus Semua', style: TextStyle(color: Colors.redAccent)),
+              ),
+            ],
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            leading: CircleAvatar(
-              backgroundColor: Colors.teal.shade50,
-              child: const Icon(Icons.history, color: Colors.teal),
-            ),
-            title: Text(
-              data['waktu'].toString(),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            subtitle: const Text('Log Tersimpan'),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${data['suhu']} °C',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+        ),
+        
+        // --- LIST RIWAYAT ---
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: riwayatData.length,
+            itemBuilder: (context, index) {
+              final data = riwayatData[index];
+              return Card(
+                elevation: 0,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.grey.shade200),
                 ),
-                Text(
-                  '${data['kelembapan']} %',
-                  style: const TextStyle(fontSize: 12, color: Colors.blue),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.teal.shade50,
+                    child: const Icon(Icons.history, color: Colors.teal),
+                  ),
+                  title: Text(
+                    data['waktu'].toString(),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  subtitle: const Text('Log Tersimpan'),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${data['suhu']} °C',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                      ),
+                      Text(
+                        '${data['kelembapan']} %',
+                        style: const TextStyle(fontSize: 12, color: Colors.blue),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
