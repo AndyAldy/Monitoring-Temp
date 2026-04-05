@@ -17,6 +17,7 @@ class _MainScreenState extends State<MainScreen> {
   double _kelembapan = 0.0;
   bool _isKipasNyala = false;
   List<Map<String, dynamic>> _riwayatData = [];
+  bool _isManualMode = false;
 
   // Panggil Backend Service
   final MqttService _mqttService = MqttService();
@@ -34,20 +35,29 @@ class _MainScreenState extends State<MainScreen> {
     };
 
     // 2. Sinkronisasi Data Masuk
-    _mqttService.onDataReceived = (topic, payload) {
-      if (mounted) {
-        setState(() {
-          if (topic == 'monitor/iot/suhu') {
-            _suhu = double.tryParse(payload) ?? _suhu;
-          } else if (topic == 'monitor/iot/kelembapan') {
-            _kelembapan = double.tryParse(payload) ?? _kelembapan;
-            _simpanKeRiwayat();
-          } else if (topic == 'monitor/iot/kipas_status' || topic == 'monitor/iot/kipas_kontrol') {
-            _isKipasNyala = (payload == 'ON');
-          }
-        });
+_mqttService.onDataReceived = (topic, payload) {
+  if (mounted) {
+    setState(() {
+      if (topic == 'monitor/iot/suhu') {
+        _suhu = double.tryParse(payload) ?? _suhu;
+      } else if (topic == 'monitor/iot/kelembapan') {
+        _kelembapan = double.tryParse(payload) ?? _kelembapan;
+        _simpanKeRiwayat();
+      } else if (topic == 'monitor/iot/kipas_status') {
+        _isKipasNyala = (payload == 'ON');
+      } 
+      // 👉 TAMBAHKAN LOGIKA INI:
+      else if (topic == 'monitor/iot/kipas_kontrol') {
+        if (payload == "AUTO") {
+          _isManualMode = false;
+        } else {
+          // Jika ON atau OFF, berarti sedang mode manual
+          _isManualMode = true;
+        }
       }
-    };
+    });
+  }
+};
 
     // Mulai koneksi (Delay 1.5 detik agar jaringan HP siap)
     Future.delayed(const Duration(milliseconds: 1500), () => _mqttService.connect());
@@ -89,21 +99,27 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+void _setKipasOtomatis() {
+  _mqttService.publish('monitor/iot/kipas_kontrol', 'AUTO');
+  setState(() {
+    _isManualMode = false;
+  });
+}
+
   @override
   Widget build(BuildContext context) {
-    final List<Widget> daftarHalaman = [
-      HomePage(
-        isOnline: _isOnline,
-        suhu: _suhu,
-        kelembapan: _kelembapan,
-        isKipasNyala: _isKipasNyala,
-        onToggleKipas: _toggleKipasManual,
-      ),
-      HistoryPage(
-        riwayatData: _riwayatData,
-        onDeleteAll: _clearHistory, // Sinkronkan fungsi hapus
-      ),
-    ];
+final List<Widget> daftarHalaman = [
+  HomePage(
+    isOnline: _isOnline,
+    suhu: _suhu,
+    kelembapan: _kelembapan,
+    isKipasNyala: _isKipasNyala,
+    isManualMode: _isManualMode, // Kirim status mode
+    onToggleKipas: _toggleKipasManual,
+    onSetAuto: _setKipasOtomatis, // Kirim fungsi set auto
+  ),
+  HistoryPage(riwayatData: _riwayatData, onDeleteAll: _clearHistory),
+];
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
