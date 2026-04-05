@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mqtt_client/mqtt_client.dart';
-import 'package:mqtt_client/mqtt_server_client.dart';
-import 'dart:io';
-
+import '../services/mqtt_service.dart';
 import 'home_page.dart';
 import 'history_page.dart';
 
@@ -15,137 +12,81 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _indeksNavigasi = 0;
-
   bool _isOnline = false;
   double _suhu = 0.0;
   double _kelembapan = 0.0;
   bool _isKipasNyala = false;
-  
   List<Map<String, dynamic>> _riwayatData = [];
-  MqttServerClient? client;
+
+  // Panggil Backend Service
+  final MqttService _mqttService = MqttService();
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      _connectToHiveMQ();
-    });
+    _setupMqtt();
   }
 
-  // === FUNGSI KONTROL MANUAL (LOGIKA BARU) ===
-  void _toggleKipasManual(bool status) {
-    // 1. Update UI secara instan agar tombol langsung bergerak
-    setState(() {
-      _isKipasNyala = status;
-    });
+  void _setupMqtt() {
+    // 1. Sinkronisasi status Online/Offline
+    _mqttService.onConnectionStateChanged = (status) {
+      if (mounted) setState(() => _isOnline = status);
+    };
 
-    // 2. Kirim perintah ke ESP32 melalui MQTT
-    final builder = MqttClientPayloadBuilder();
-    builder.addString(status ? "ON" : "OFF");
-
-    if (client != null && client!.connectionStatus!.state == MqttConnectionState.connected) {
-      client!.publishMessage(
-        'monitor/iot/kipas_kontrol', 
-        MqttQos.atLeastOnce, 
-        builder.payload!,
-      );
-      print('Mengirim perintah manual: ${status ? "ON" : "OFF"}');
-    }
-  }
-
-  Future<void> _connectToHiveMQ() async {
-    String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud'; 
-    String waktu = DateTime.now().millisecondsSinceEpoch.toString();
-    String clientId = 'App${waktu.substring(waktu.length - 8)}';
-    
-    client = MqttServerClient.withPort(server, clientId, 8883);
-    client!.useWebSocket = false; 
-    client!.secure = true; 
-    client!.securityContext = SecurityContext.defaultContext;
-    client!.onBadCertificate = (dynamic cert) => true; 
-    client!.setProtocolV311(); 
-    client!.logging(on: true);
-    client!.keepAlivePeriod = 60;
-    
-    final connMessage = MqttConnectMessage()
-        .withClientIdentifier(clientId)
-        .startClean(); 
-    
-    client!.connectionMessage = connMessage;
-
-    int maksimalPercobaan = 3;
-    bool berhasilKonek = false;
-
-    for (int i = 1; i <= maksimalPercobaan; i++) {
-      try {
-        await client!.connect('smart_temp', 'Andyaldy13');
-        berhasilKonek = true;
-        break; 
-      } catch (e) {
-        client!.disconnect();
-        if (i < maksimalPercobaan) {
-          await Future.delayed(const Duration(seconds: 2));
-        }
+    // 2. Sinkronisasi Data Masuk
+    _mqttService.onDataReceived = (topic, payload) {
+      if (mounted) {
+        setState(() {
+          if (topic == 'monitor/iot/suhu') {
+            _suhu = double.tryParse(payload) ?? _suhu;
+          } else if (topic == 'monitor/iot/kelembapan') {
+            _kelembapan = double.tryParse(payload) ?? _kelembapan;
+            _simpanKeRiwayat();
+          } else if (topic == 'monitor/iot/kipas_status' || topic == 'monitor/iot/kipas_kontrol') {
+            _isKipasNyala = (payload == 'ON');
+          }
+        });
       }
-    }
+    };
 
-    if (berhasilKonek && client!.connectionStatus!.state == MqttConnectionState.connected) {
-      setState(() {
-        _isOnline = true; 
-      });
-      
-      client!.subscribe('monitor/iot/suhu', MqttQos.atLeastOnce);
-      client!.subscribe('monitor/iot/kelembapan', MqttQos.atLeastOnce);
-      client!.subscribe('monitor/iot/kipas_status', MqttQos.atLeastOnce);
-      // Subscribe juga ke topik kontrol agar sinkron jika ada perangkat lain yang mengontrol
-      client!.subscribe('monitor/iot/kipas_kontrol', MqttQos.atLeastOnce);
-
-      client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
-        final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
-        final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
-        
-        if (mounted) {
-          setState(() {
-            if (c[0].topic == 'monitor/iot/suhu') {
-              _suhu = double.tryParse(payload) ?? _suhu; 
-            } else if (c[0].topic == 'monitor/iot/kelembapan') {
-              _kelembapan = double.tryParse(payload) ?? _kelembapan; 
-              _simpanKeRiwayat();
-            } else if (c[0].topic == 'monitor/iot/kipas_status' || c[0].topic == 'monitor/iot/kipas_kontrol') {
-              // Update status tombol berdasarkan laporan balik dari ESP32
-              _isKipasNyala = (payload == 'ON'); 
-            }
-          });
-        }
-      });
-    } else {
-      setState(() {
-        _isOnline = false;
-      });
-    }
+    // Mulai koneksi (Delay 1.5 detik agar jaringan HP siap)
+    Future.delayed(const Duration(milliseconds: 1500), () => _mqttService.connect());
   }
 
   void _simpanKeRiwayat() {
-    final waktuSekarang = DateTime.now();
-    final formatWaktu = "${waktuSekarang.hour.toString().padLeft(2, '0')}:${waktuSekarang.minute.toString().padLeft(2, '0')}:${waktuSekarang.second.toString().padLeft(2, '0')}";
-    
+    final sekarang = DateTime.now();
     _riwayatData.insert(0, {
       'suhu': _suhu.toStringAsFixed(1),
       'kelembapan': _kelembapan.toStringAsFixed(1),
-      'waktu': formatWaktu,
+      'waktu': "${sekarang.hour.toString().padLeft(2, '0')}:${sekarang.minute.toString().padLeft(2, '0')}:${sekarang.second.toString().padLeft(2, '0')}",
     });
-
     if (_riwayatData.length > 50) _riwayatData.removeLast();
   }
 
-  void _sinkronisasiUlang() async { 
-    if (client?.connectionStatus?.state != MqttConnectionState.connected) {
-      if (client != null) {
-        client!.disconnect();
-        await Future.delayed(const Duration(milliseconds: 500)); 
-      }
-      _connectToHiveMQ();
-    }
+  // --- LOGIKA SINKRONISASI MANUAL ---
+  void _toggleKipasManual(bool status) {
+    setState(() => _isKipasNyala = status); // Update UI instan
+    _mqttService.publish('monitor/iot/kipas_kontrol', status ? "ON" : "OFF");
+  }
+
+  void _clearHistory() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Riwayat?'),
+        content: const Text('Semua log akan dihapus permanen.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(
+            onPressed: () {
+              setState(() => _riwayatData.clear());
+              Navigator.pop(context);
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -156,9 +97,12 @@ class _MainScreenState extends State<MainScreen> {
         suhu: _suhu,
         kelembapan: _kelembapan,
         isKipasNyala: _isKipasNyala,
-        onToggleKipas: _toggleKipasManual, // Kirim fungsi kontrol ke HomePage
+        onToggleKipas: _toggleKipasManual,
       ),
-      HistoryPage(riwayatData: _riwayatData, onDeleteAll: () {  },),
+      HistoryPage(
+        riwayatData: _riwayatData,
+        onDeleteAll: _clearHistory, // Sinkronkan fungsi hapus
+      ),
     ];
 
     return Scaffold(
@@ -168,6 +112,7 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             const Text('Dashboard IoT', style: TextStyle(fontWeight: FontWeight.bold)),
             const Spacer(),
+            // Chip Status Sinkron
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -185,7 +130,10 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.sync), onPressed: _sinkronisasiUlang),
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: () => _mqttService.connect(),
+          ),
         ],
       ),
       body: AnimatedSwitcher(
@@ -194,7 +142,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _indeksNavigasi,
-        onDestinationSelected: (int index) => setState(() => _indeksNavigasi = index),
+        onDestinationSelected: (int i) => setState(() => _indeksNavigasi = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.history_outlined), label: 'History'),

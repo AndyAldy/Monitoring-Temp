@@ -5,7 +5,7 @@ import 'package:mqtt_client/mqtt_server_client.dart';
 class MqttService {
   MqttServerClient? client;
   
-  // Callback agar UI bisa tahu kalau ada perubahan status atau data
+  // Callback untuk mengirim data ke UI (Frontend)
   Function(bool)? onConnectionStateChanged;
   Function(String, String)? onDataReceived;
 
@@ -21,27 +21,24 @@ class MqttService {
     client!.onBadCertificate = (dynamic cert) => true;
     client!.setProtocolV311();
     client!.keepAlivePeriod = 60;
-    client!.logging(on: true);
 
-    final connMessage = MqttConnectMessage()
-        .withClientIdentifier(clientId)
-        .startClean();
+    final connMessage = MqttConnectMessage().withClientIdentifier(clientId).startClean();
     client!.connectionMessage = connMessage;
 
     try {
-      print('Mencoba terhubung via MqttService...');
       await client!.connect('smart_temp', 'Andyaldy13');
     } catch (e) {
-      print('Koneksi Gagal: $e');
       client!.disconnect();
     }
 
     if (client!.connectionStatus!.state == MqttConnectionState.connected) {
       onConnectionStateChanged?.call(true);
       
+      // Subscribe ke semua topik yang diperlukan
       client!.subscribe('monitor/iot/suhu', MqttQos.atLeastOnce);
       client!.subscribe('monitor/iot/kelembapan', MqttQos.atLeastOnce);
       client!.subscribe('monitor/iot/kipas_status', MqttQos.atLeastOnce);
+      client!.subscribe('monitor/iot/kipas_kontrol', MqttQos.atLeastOnce);
 
       client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
@@ -54,15 +51,13 @@ class MqttService {
     }
   }
 
-// Tambahkan fungsi ini di dalam class MqttService
-void publish(String topic, String message) {
-  if (client?.connectionStatus?.state == MqttConnectionState.connected) {
-    final builder = MqttClientPayloadBuilder();
-    builder.addString(message);
-    client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
-    print('Mengirim perintah: $message ke topik: $topic');
+  void publish(String topic, String message) {
+    if (client?.connectionStatus?.state == MqttConnectionState.connected) {
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(message);
+      client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+    }
   }
-}
 
   void disconnect() {
     client?.disconnect();
