@@ -16,10 +16,9 @@ class _MainScreenState extends State<MainScreen> {
   double _suhu = 0.0;
   double _kelembapan = 0.0;
   bool _isKipasNyala = false;
-  List<Map<String, dynamic>> _riwayatData = [];
   bool _isManualMode = false;
+  List<Map<String, dynamic>> _riwayatData = [];
 
-  // Panggil Backend Service
   final MqttService _mqttService = MqttService();
 
   @override
@@ -35,33 +34,37 @@ class _MainScreenState extends State<MainScreen> {
     };
 
     // 2. Sinkronisasi Data Masuk
-_mqttService.onDataReceived = (topic, payload) {
-  if (mounted) {
-    setState(() {
-      if (topic == 'monitor/iot/suhu') {
-        _suhu = double.tryParse(payload) ?? _suhu;
-      } else if (topic == 'monitor/iot/kelembapan') {
-        _kelembapan = double.tryParse(payload) ?? _kelembapan;
-        _simpanKeRiwayat();
-      } else if (topic == 'monitor/iot/kipas_status') {
-        _isKipasNyala = (payload == 'ON');
-      } 
-      // 👉 TAMBAHKAN LOGIKA INI:
-      else if (topic == 'monitor/iot/kipas_kontrol') {
-        if (payload == "AUTO") {
-          _isManualMode = false;
-        } else {
-          // Jika ON atau OFF, berarti sedang mode manual
-          _isManualMode = true;
-        }
+    _mqttService.onDataReceived = (topic, payload) {
+      if (mounted) {
+        setState(() {
+          if (topic == 'monitor/iot/suhu') {
+            _suhu = double.tryParse(payload) ?? _suhu;
+            // Logika Otomatis: Hanya jalan jika sedang MODE AUTO
+            if (!_isManualMode) {
+              _isKipasNyala = _suhu > 28.0;
+            }
+          } else if (topic == 'monitor/iot/kelembapan') {
+            _kelembapan = double.tryParse(payload) ?? _kelembapan;
+            _simpanKeRiwayat();
+          } else if (topic == 'monitor/iot/kipas_status') {
+            _isKipasNyala = (payload == 'ON');
+          } else if (topic == 'monitor/iot/kipas_kontrol') {
+            // Sinkronisasi status Mode dari ESP32
+            if (payload == "AUTO") {
+              _isManualMode = false;
+            } else {
+              _isManualMode = true;
+            }
+          }
+        });
       }
-    });
-  }
-};
+    };
 
     // Mulai koneksi (Delay 1.5 detik agar jaringan HP siap)
     Future.delayed(const Duration(milliseconds: 1500), () => _mqttService.connect());
   }
+
+  // --- FUNGSI LOGIKA (BACKEND) ---
 
   void _simpanKeRiwayat() {
     final sekarang = DateTime.now();
@@ -73,10 +76,20 @@ _mqttService.onDataReceived = (topic, payload) {
     if (_riwayatData.length > 50) _riwayatData.removeLast();
   }
 
-  // --- LOGIKA SINKRONISASI MANUAL ---
   void _toggleKipasManual(bool status) {
-    setState(() => _isKipasNyala = status); // Update UI instan
+    setState(() {
+      _isManualMode = true; 
+      _isKipasNyala = status;
+    });
     _mqttService.publish('monitor/iot/kipas_kontrol', status ? "ON" : "OFF");
+  }
+
+  void _setModeOtomatis() {
+    _mqttService.publish('monitor/iot/kipas_kontrol', 'AUTO');
+    setState(() {
+      _isManualMode = false;
+      _isKipasNyala = _suhu > 28.0; 
+    });
   }
 
   void _clearHistory() {
@@ -99,27 +112,23 @@ _mqttService.onDataReceived = (topic, payload) {
     );
   }
 
-void _setKipasOtomatis() {
-  _mqttService.publish('monitor/iot/kipas_kontrol', 'AUTO');
-  setState(() {
-    _isManualMode = false;
-  });
-}
-
   @override
   Widget build(BuildContext context) {
-final List<Widget> daftarHalaman = [
-  HomePage(
-    isOnline: _isOnline,
-    suhu: _suhu,
-    kelembapan: _kelembapan,
-    isKipasNyala: _isKipasNyala,
-    isManualMode: _isManualMode, // Kirim status mode
-    onToggleKipas: _toggleKipasManual,
-    onSetAuto: _setKipasOtomatis, // Kirim fungsi set auto
-  ),
-  HistoryPage(riwayatData: _riwayatData, onDeleteAll: _clearHistory),
-];
+    final List<Widget> daftarHalaman = [
+      HomePage(
+        isOnline: _isOnline,
+        suhu: _suhu,
+        kelembapan: _kelembapan,
+        isKipasNyala: _isKipasNyala,
+        isManualMode: _isManualMode,
+        onToggleKipas: _toggleKipasManual,
+        onSetAuto: _setModeOtomatis,
+      ),
+      HistoryPage(
+        riwayatData: _riwayatData,
+        onDeleteAll: _clearHistory,
+      ),
+    ];
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -128,7 +137,6 @@ final List<Widget> daftarHalaman = [
           children: [
             const Text('Dashboard IoT', style: TextStyle(fontWeight: FontWeight.bold)),
             const Spacer(),
-            // Chip Status Sinkron
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(

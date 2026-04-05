@@ -53,7 +53,11 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 16),
           ModeCard(isManualMode: isManualMode, onSetAuto: onSetAuto),
           const SizedBox(height: 16),
-          KipasCard(isKipasNyala: isKipasNyala, onToggle: onToggleKipas),
+          KipasCard(
+  isKipasNyala: isKipasNyala, 
+  // 👉 Fungsi diteruskan ke widget KipasCard
+  onToggle: onToggleKipas, 
+),
         ],
       ),
     );

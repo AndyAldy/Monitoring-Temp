@@ -9,7 +9,7 @@ class ModeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: isManualMode ? Colors.orange.shade50 : Colors.blue.shade50,
         borderRadius: BorderRadius.circular(15),
@@ -18,30 +18,30 @@ class ModeCard extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            isManualMode ? Icons.touch_app : Icons.settings_suggest,
-            color: isManualMode ? Colors.orange.shade700 : Colors.blue.shade700,
+            isManualMode ? Icons.pan_tool_outlined : Icons.auto_mode,
+            color: isManualMode ? Colors.orange : Colors.blue,
           ),
           const SizedBox(width: 12),
-          Text(
-            isManualMode ? "Mode : Manual" : "Mode : Auto (Sensor)",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isManualMode ? Colors.orange.shade900 : Colors.blue.shade900,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Mode Perangkat", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                isManualMode ? "MANUAL" : "OTOMATIS (SENSOR)",
+                style: TextStyle(fontWeight: FontWeight.bold, color: isManualMode ? Colors.orange.shade900 : Colors.blue.shade900),
+              ),
+            ],
           ),
           const Spacer(),
           if (isManualMode)
-            ElevatedButton.icon(
+            ElevatedButton(
               onPressed: onSetAuto,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
+                backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text("Set Auto"),
+              child: const Text("Set Auto"),
             ),
         ],
       ),
