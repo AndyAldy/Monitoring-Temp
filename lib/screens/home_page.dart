@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:monitoring_tempe/widgets/sensor_card.dart';
 
 class HomePage extends StatelessWidget {
   final bool isOnline;
   final double suhu;
   final double kelembapan;
   final bool isKipasNyala;
+  
 
   const HomePage({
     super.key,
@@ -47,11 +49,30 @@ class HomePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           // Memecah Suhu & Kelembapan menjadi 2 Card terpisah di dalam Row
+// Di dalam build method HomePage...
           Row(
             children: [
-              Expanded(child: _buildSensorCard('Suhu', '$suhu', '°C', Icons.thermostat, Colors.orange)),
+              Expanded(
+                child: SensorCard(
+                  title: 'Suhu',
+                  value: '$suhu',
+                  unit: '°C',
+                  icon: Icons.thermostat,
+                  iconColor: Colors.orange,
+                ),
+              ),
               const SizedBox(width: 16),
-              Expanded(child: _buildSensorCard('Kelembapan', '$kelembapan', '%', Icons.water_drop, Colors.blue)),
+              Expanded(
+                child: SensorCard(
+                  title: 'Kelembapan',
+                  value: '$kelembapan',
+                  unit: '%',
+                  icon: Icons.water_drop,
+                  iconColor: warnaIkonKelembapan,
+                  bgColor: warnaBgKelembapan,
+                  textColor: warnaTeksKelembapan,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -115,49 +136,6 @@ class HomePage extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Widget helper untuk merapihkan Card Sensor
-  Widget _buildSensorCard(String title, String value, String unit, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 36),
-          const SizedBox(height: 16),
-          Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                unit,
-                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-              ),
-            ],
           ),
         ],
       ),
