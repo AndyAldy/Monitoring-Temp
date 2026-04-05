@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mqtt_client/mqtt_client.dart';
+import 'package:mqtt_client/mqtt_server_client.dart';
+import 'dart:io';
+
 import 'home_page.dart';
 import 'history_page.dart';
 
@@ -11,23 +15,92 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _indeksNavigasi = 0;
+  
+  // Variabel tidak lagi "final" agar bisa diubah saat data MQTT masuk
   bool _isOnline = false;
+  double _suhu = 0.0;
+  double _kelembapan = 0.0;
+  bool _isKipasNyala = false;
 
-  // Data Dummy Sensor
-  final double _suhu = 29.5;
-  final double _kelembapan = 65.0;
-  final bool _isKipasNyala = true;
+  MqttServerClient? client;
 
-  void _simulasiKoneksi() {
-    setState(() {
-      _isOnline = !_isOnline;
-    });
-    // Menambahkan Snackbar kecil untuk notifikasi UX
+  @override
+  void initState() {
+    super.initState();
+    // Otomatis mencoba connect ke HiveMQ saat halaman dibuka
+    _connectToHiveMQ(); 
+  }
+
+  // ==== FUNGSI KONEKSI KE HIVEMQ CLOUD ====
+  Future<void> _connectToHiveMQ() async {
+    // 1. GANTI INI DENGAN URL CLUSTER KAMU (tanpa mqtt:// atau https://)
+    String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud'; 
+    
+    client = MqttServerClient.withPort(server, 'FlutterClient_Angel', 8883);
+    
+    // Wajib dinyalakan untuk HiveMQ Cloud
+    client!.secure = true; 
+    client!.securityContext = SecurityContext.defaultContext;
+    client!.setProtocolV311(); 
+    client!.logging(on: true);
+    client!.keepAlivePeriod = 60;
+    
+    final connMessage = MqttConnectMessage()
+        .withClientIdentifier('FlutterClient_Andy')
+        .withWillQos(MqttQos.atLeastOnce);
+    
+    client!.connectionMessage = connMessage;
+
+    try {
+      print('Menghubungkan ke HiveMQ Cloud...');
+      // 2. GANTI INI DENGAN USERNAME & PASSWORD HIVEMQ CLOUD KAMU
+      await client!.connect('smart_temp', 'Andyaldy13');
+    } catch (e) {
+      print('Gagal connect: $e');
+      client!.disconnect();
+    }
+
+    if (client!.connectionStatus!.state == MqttConnectionState.connected) {
+      print('Status: Terhubung ke HiveMQ Cloud!');
+      setState(() {
+        _isOnline = true; // Ubah status UI jadi Online
+      });
+      
+      // Subscribe ke topik sensor (Sesuaikan dengan topik di Wokwi)
+      client!.subscribe('angel/iot/suhu', MqttQos.atLeastOnce);
+
+      // Dengarkan pesan yang masuk
+      client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
+        final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
+        final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
+        
+        print('Terima data dari topik <${c[0].topic}>: $payload');
+        
+        // Memperbarui UI Flutter secara real-time
+        if (c[0].topic == 'angel/iot/suhu') {
+          setState(() {
+            _suhu = double.tryParse(payload) ?? _suhu; 
+          });
+        }
+      });
+    } else {
+      print('Koneksi gagal!');
+      client!.disconnect();
+      setState(() {
+        _isOnline = false;
+      });
+    }
+  }
+
+  // Tombol sinkronisasi manual jika tiba-tiba terputus
+  void _sinkronisasiUlang() {
+    if (client?.connectionStatus?.state != MqttConnectionState.connected) {
+      _connectToHiveMQ();
+    }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_isOnline ? 'ESP32 Terhubung' : 'ESP32 Terputus'),
-        backgroundColor: _isOnline ? Colors.green : Colors.red,
-        duration: const Duration(seconds: 1),
+      const SnackBar(
+        content: Text('Mencoba menyambungkan ulang ke server...'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -55,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
             ),
             const Spacer(),
-            // Status Chip yang modern
+            // Status Chip
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -86,8 +159,8 @@ class _MainScreenState extends State<MainScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.sync),
-            tooltip: 'Simulasi Koneksi ESP32',
-            onPressed: _simulasiKoneksi,
+            tooltip: 'Sinkronisasi Ulang',
+            onPressed: _sinkronisasiUlang, // Panggil ulang koneksi
           ),
           const SizedBox(width: 8),
         ],
@@ -96,7 +169,6 @@ class _MainScreenState extends State<MainScreen> {
         duration: const Duration(milliseconds: 300),
         child: daftarHalaman[_indeksNavigasi],
       ),
-      // Menggunakan NavigationBar (Material 3) yang lebih estetik
       bottomNavigationBar: NavigationBar(
         selectedIndex: _indeksNavigasi,
         onDestinationSelected: (int index) {
