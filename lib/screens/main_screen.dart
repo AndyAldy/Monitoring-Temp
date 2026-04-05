@@ -33,35 +33,30 @@ class _MainScreenState extends State<MainScreen> {
 
   // Fungsi untuk terhubung ke broker HiveMQ Cloud sesuai dengan setup di Wokwi
 Future<void> _connectToHiveMQ() async {
-    // 1. UBAH URL: Tambahkan wss:// di depan dan /mqtt di belakang
-    String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud';
+    // 1. Kembali ke nama server murni
+    String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud'; 
     
-    // Jangan gunakan .withPort di sini karena kita pakai WebSockets
-    client = MqttServerClient(server, 'FlutterApp_MonitorSuhu');
+    // 2. Kita buat ID unik otomatis agar tidak pernah ditolak karena bentrok
+    String clientId = 'FlutterApp_${DateTime.now().millisecondsSinceEpoch}';
     
-    // 2. AKTIFKAN WEBSOCKETS DAN UBAH PORT KE 8884
-    client!.useWebSocket = true;
-    client!.port = 8884; // Port wajib untuk WebSocket HiveMQ Cloud
-    
-    // Konfigurasi keamanan
-    client!.secure = true;
+    client = MqttServerClient(server, clientId);
+    client!.port = 8883; // KEMBALI KE PORT 8883 (Lebih stabil)
+    client!.secure = true; 
     client!.securityContext = SecurityContext.defaultContext;
-    
-    // 3. Wajib: Bypass sertifikat keamanan yang sering error di Emulator Android
     client!.onBadCertificate = (Object cert) => true;
-    
-    client!.setProtocolV311();
-    client!.logging(on: true); 
+    client!.setProtocolV311(); 
+    client!.logging(on: true);
     client!.keepAlivePeriod = 60;
     
     final connMessage = MqttConnectMessage()
-        .withClientIdentifier('FlutterApp_MonitorSuhu') // Pastikan ID ini unik
+        .withClientIdentifier(clientId)
+        .startClean() // <--- 🌟 INI KUNCI UTAMANYA! (Wajib untuk HiveMQ Cloud Gratisan)
         .withWillQos(MqttQos.atLeastOnce);
     
     client!.connectionMessage = connMessage;
 
     try {
-      print('Mencoba terhubung ke HiveMQ Cloud via WEBSOCKETS...');
+      print('Mencoba terhubung ke HiveMQ Cloud (Native MQTT)...');
       await client!.connect('smart_temp', 'Andyaldy13');
     } catch (e) {
       print('Gagal connect: $e');
@@ -69,9 +64,9 @@ Future<void> _connectToHiveMQ() async {
     }
 
     if (client!.connectionStatus!.state == MqttConnectionState.connected) {
-      print('Berhasil terhubung ke HiveMQ Cloud!');
+      print('🟢 BERHASIL TERHUBUNG KE HIVEMQ CLOUD!');
       setState(() {
-        _isOnline = true;
+        _isOnline = true; 
       });
       
       client!.subscribe('monitor/iot/suhu', MqttQos.atLeastOnce);
@@ -82,24 +77,24 @@ Future<void> _connectToHiveMQ() async {
         final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
         final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
         
-        print('Menerima data dari <${c[0].topic}>: $payload');
+        print('Terima data dari topik <${c[0].topic}>: $payload');
         
         if (c[0].topic == 'monitor/iot/suhu') {
           setState(() {
-            _suhu = double.tryParse(payload) ?? _suhu;
+            _suhu = double.tryParse(payload) ?? _suhu; 
           });
         } else if (c[0].topic == 'monitor/iot/kelembapan') {
           setState(() {
-            _kelembapan = double.tryParse(payload) ?? _kelembapan;
+            _kelembapan = double.tryParse(payload) ?? _kelembapan; 
           });
         } else if (c[0].topic == 'monitor/iot/kipas_status') {
           setState(() {
-            _isKipasNyala = (payload == 'ON');
+            _isKipasNyala = (payload == 'ON'); 
           });
         }
       });
     } else {
-      print('Koneksi gagal dengan status: ${client!.connectionStatus!.state}');
+      print('🔴 Koneksi gagal dengan status: ${client!.connectionStatus!.state}');
       client!.disconnect();
       setState(() {
         _isOnline = false;
