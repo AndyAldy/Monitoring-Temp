@@ -15,8 +15,8 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _indeksNavigasi = 0;
-  
-  // Variabel tidak lagi "final" agar bisa diubah saat data MQTT masuk
+
+  // Variabel state untuk menyimpan data dari Wokwi/HiveMQ
   bool _isOnline = false;
   double _suhu = 0.0;
   double _kelembapan = 0.0;
@@ -27,33 +27,41 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // Otomatis mencoba connect ke HiveMQ saat halaman dibuka
-    _connectToHiveMQ(); 
+    // Panggil fungsi koneksi MQTT saat layar pertama kali dimuat
+    _connectToHiveMQ();
   }
 
-  // ==== FUNGSI KONEKSI KE HIVEMQ CLOUD ====
-  Future<void> _connectToHiveMQ() async {
-    // 1. GANTI INI DENGAN URL CLUSTER KAMU (tanpa mqtt:// atau https://)
-    String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud'; 
+  // Fungsi untuk terhubung ke broker HiveMQ Cloud sesuai dengan setup di Wokwi
+Future<void> _connectToHiveMQ() async {
+    // 1. UBAH URL: Tambahkan wss:// di depan dan /mqtt di belakang
+    String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud';
     
-    client = MqttServerClient.withPort(server, 'FlutterClient_Angel', 8883);
+    // Jangan gunakan .withPort di sini karena kita pakai WebSockets
+    client = MqttServerClient(server, 'FlutterApp_MonitorSuhu');
     
-    // Wajib dinyalakan untuk HiveMQ Cloud
-    client!.secure = true; 
+    // 2. AKTIFKAN WEBSOCKETS DAN UBAH PORT KE 8884
+    client!.useWebSocket = true;
+    client!.port = 8884; // Port wajib untuk WebSocket HiveMQ Cloud
+    
+    // Konfigurasi keamanan
+    client!.secure = true;
     client!.securityContext = SecurityContext.defaultContext;
-    client!.setProtocolV311(); 
-    client!.logging(on: true);
+    
+    // 3. Wajib: Bypass sertifikat keamanan yang sering error di Emulator Android
+    client!.onBadCertificate = (Object cert) => true;
+    
+    client!.setProtocolV311();
+    client!.logging(on: true); 
     client!.keepAlivePeriod = 60;
     
     final connMessage = MqttConnectMessage()
-        .withClientIdentifier('FlutterClient_Andy')
+        .withClientIdentifier('FlutterApp_MonitorSuhu') // Pastikan ID ini unik
         .withWillQos(MqttQos.atLeastOnce);
     
     client!.connectionMessage = connMessage;
 
     try {
-      print('Menghubungkan ke HiveMQ Cloud...');
-      // 2. GANTI INI DENGAN USERNAME & PASSWORD HIVEMQ CLOUD KAMU
+      print('Mencoba terhubung ke HiveMQ Cloud via WEBSOCKETS...');
       await client!.connect('smart_temp', 'Andyaldy13');
     } catch (e) {
       print('Gagal connect: $e');
@@ -61,30 +69,37 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     if (client!.connectionStatus!.state == MqttConnectionState.connected) {
-      print('Status: Terhubung ke HiveMQ Cloud!');
+      print('Berhasil terhubung ke HiveMQ Cloud!');
       setState(() {
-        _isOnline = true; // Ubah status UI jadi Online
+        _isOnline = true;
       });
       
-      // Subscribe ke topik sensor (Sesuaikan dengan topik di Wokwi)
-      client!.subscribe('angel/iot/suhu', MqttQos.atLeastOnce);
+      client!.subscribe('monitor/iot/suhu', MqttQos.atLeastOnce);
+      client!.subscribe('monitor/iot/kelembapan', MqttQos.atLeastOnce);
+      client!.subscribe('monitor/iot/kipas_status', MqttQos.atLeastOnce);
 
-      // Dengarkan pesan yang masuk
       client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
         final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
         
-        print('Terima data dari topik <${c[0].topic}>: $payload');
+        print('Menerima data dari <${c[0].topic}>: $payload');
         
-        // Memperbarui UI Flutter secara real-time
-        if (c[0].topic == 'angel/iot/suhu') {
+        if (c[0].topic == 'monitor/iot/suhu') {
           setState(() {
-            _suhu = double.tryParse(payload) ?? _suhu; 
+            _suhu = double.tryParse(payload) ?? _suhu;
+          });
+        } else if (c[0].topic == 'monitor/iot/kelembapan') {
+          setState(() {
+            _kelembapan = double.tryParse(payload) ?? _kelembapan;
+          });
+        } else if (c[0].topic == 'monitor/iot/kipas_status') {
+          setState(() {
+            _isKipasNyala = (payload == 'ON');
           });
         }
       });
     } else {
-      print('Koneksi gagal!');
+      print('Koneksi gagal dengan status: ${client!.connectionStatus!.state}');
       client!.disconnect();
       setState(() {
         _isOnline = false;
@@ -92,10 +107,19 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  // Tombol sinkronisasi manual jika tiba-tiba terputus
+  // Tombol untuk merefresh / mencoba konek ulang secara manual (Tombol Sync di atas kanan)
   void _sinkronisasiUlang() {
     if (client?.connectionStatus?.state != MqttConnectionState.connected) {
       _connectToHiveMQ();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sudah terhubung ke server.'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -107,6 +131,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // List halaman yang akan ditukar-tukar berdasarkan tab yang diklik
     final List<Widget> daftarHalaman = [
       HomePage(
         isOnline: _isOnline,
@@ -128,7 +153,7 @@ class _MainScreenState extends State<MainScreen> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
             ),
             const Spacer(),
-            // Status Chip
+            // Status Chip modern
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -160,7 +185,7 @@ class _MainScreenState extends State<MainScreen> {
           IconButton(
             icon: const Icon(Icons.sync),
             tooltip: 'Sinkronisasi Ulang',
-            onPressed: _sinkronisasiUlang, // Panggil ulang koneksi
+            onPressed: _sinkronisasiUlang,
           ),
           const SizedBox(width: 8),
         ],

@@ -9,6 +9,7 @@ dependencies:
   flutter:
     sdk: flutter
   mqtt_client: ^10.11.10
+  mqtt_server: ^2.0.0
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
