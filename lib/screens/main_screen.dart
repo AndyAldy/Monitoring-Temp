@@ -33,15 +33,19 @@ class _MainScreenState extends State<MainScreen> {
 
   // Fungsi untuk terhubung ke broker HiveMQ Cloud sesuai dengan setup di Wokwi
 Future<void> _connectToHiveMQ() async {
-    // 1. Kembali ke nama server murni
     String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud'; 
-    
-    // 2. Kita buat ID unik otomatis agar tidak pernah ditolak karena bentrok
     String clientId = 'FlutterApp_${DateTime.now().millisecondsSinceEpoch}';
     
     client = MqttServerClient(server, clientId);
-    client!.port = 8883; // KEMBALI KE PORT 8883 (Lebih stabil)
+    
+    // ======== SOLUSI ANTI BLOKIR PROVIDER SELULER ========
+    // Gunakan WebSocket (Port 8884) alih-alih TCP murni (Port 8883)
+    client!.useWebSocket = true; 
+    client!.port = 8884; 
+    // =====================================================
+
     client!.secure = true; 
+    // Gunakan SecurityContext() kosong atau defaultContext
     client!.securityContext = SecurityContext.defaultContext;
     client!.onBadCertificate = (Object cert) => true;
     client!.setProtocolV311(); 
@@ -50,13 +54,14 @@ Future<void> _connectToHiveMQ() async {
     
     final connMessage = MqttConnectMessage()
         .withClientIdentifier(clientId)
-        .startClean() // <--- 🌟 INI KUNCI UTAMANYA! (Wajib untuk HiveMQ Cloud Gratisan)
-        .withWillQos(MqttQos.atLeastOnce);
+        .startClean(); 
+        // ❌ BARIS INI DIHAPUS: .withWillQos(MqttQos.atLeastOnce);
     
     client!.connectionMessage = connMessage;
 
     try {
-      print('Mencoba terhubung ke HiveMQ Cloud (Native MQTT)...');
+      print('Mencoba terhubung ke HiveMQ Cloud...');
+      // Gunakan username dan password dari HiveMQ Cloud kamu
       await client!.connect('smart_temp', 'Andyaldy13');
     } catch (e) {
       print('Gagal connect: $e');
@@ -100,7 +105,7 @@ Future<void> _connectToHiveMQ() async {
         _isOnline = false;
       });
     }
-  }
+}
 
   // Tombol untuk merefresh / mencoba konek ulang secara manual (Tombol Sync di atas kanan)
   void _sinkronisasiUlang() {
