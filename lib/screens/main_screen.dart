@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';     // Mengambil file home_page.dart
-import 'history_page.dart';  // Mengambil file history_page.dart
+import 'home_page.dart';
+import 'history_page.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,21 +18,22 @@ class _MainScreenState extends State<MainScreen> {
   final double _kelembapan = 65.0;
   final bool _isKipasNyala = true;
 
-  void _pilihTab(int index) {
-    setState(() {
-      _indeksNavigasi = index;
-    });
-  }
-
   void _simulasiKoneksi() {
     setState(() {
       _isOnline = !_isOnline;
     });
+    // Menambahkan Snackbar kecil untuk notifikasi UX
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_isOnline ? 'ESP32 Terhubung' : 'ESP32 Terputus'),
+        backgroundColor: _isOnline ? Colors.green : Colors.red,
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // List halaman yang akan ditukar-tukar berdasarkan tab yang diklik
     final List<Widget> daftarHalaman = [
       HomePage(
         isOnline: _isOnline,
@@ -44,33 +45,74 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text(
-          _isOnline ? 'Status: Online 🟢' : 'Status: Offline 🔴',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        centerTitle: false,
+        title: Row(
+          children: [
+            const Text(
+              'Dashboard IoT',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+            ),
+            const Spacer(),
+            // Status Chip yang modern
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _isOnline ? Colors.green.shade100 : Colors.red.shade100,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isOnline ? Icons.wifi : Icons.wifi_off,
+                    size: 16,
+                    color: _isOnline ? Colors.green.shade700 : Colors.red.shade700,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _isOnline ? 'Online' : 'Offline',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _isOnline ? Colors.green.shade700 : Colors.red.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        backgroundColor: _isOnline ? Colors.green.shade100 : Colors.red.shade100,
         actions: [
           IconButton(
-            icon: const Icon(Icons.wifi),
+            icon: const Icon(Icons.sync),
             tooltip: 'Simulasi Koneksi ESP32',
             onPressed: _simulasiKoneksi,
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: daftarHalaman[_indeksNavigasi], // Menampilkan halaman yang aktif
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _indeksNavigasi,
-        onTap: _pilihTab,
-        selectedItemColor: Colors.blue,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: daftarHalaman[_indeksNavigasi],
+      ),
+      // Menggunakan NavigationBar (Material 3) yang lebih estetik
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _indeksNavigasi,
+        onDestinationSelected: (int index) {
+          setState(() {
+            _indeksNavigasi = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home, color: Colors.teal),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history, color: Colors.teal),
             label: 'History',
           ),
         ],

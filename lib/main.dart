@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/splash_screen.dart'; // Mengambil file splash_screen.dart
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(const AplikasiMonitoringSuhu());
@@ -14,10 +14,18 @@ class AplikasiMonitoringSuhu extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Monitoring Suhu',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        // Menggunakan skema warna Teal (Hijau Kebiruan) yang cocok untuk IoT
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
+        // Konfigurasi font bawaan agar sedikit lebih elegan
+        textTheme: const TextTheme(
+          titleLarge: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
-      home: const SplashScreen()
+      home: const SplashScreen(),
     );
   }
 }
