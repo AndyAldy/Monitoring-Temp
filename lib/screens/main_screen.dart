@@ -21,33 +21,42 @@ class _MainScreenState extends State<MainScreen> {
   double _suhu = 0.0;
   double _kelembapan = 0.0;
   bool _isKipasNyala = false;
+  
+  // 👉 TAMBAHKAN INI: Variabel untuk menyimpan riwayat (maksimal 50 log terbaru)
+  List<Map<String, dynamic>> _riwayatData = [];
 
   MqttServerClient? client;
 
-  @override
+@override
   void initState() {
     super.initState();
-    // Panggil fungsi koneksi MQTT saat layar pertama kali dimuat
-    _connectToHiveMQ();
+    // Beri jeda 1.5 detik agar network native HP benar-benar siap
+    // sebelum Flutter menembak server MQTT
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      _connectToHiveMQ();
+    });
   }
 
   // Fungsi untuk terhubung ke broker HiveMQ Cloud sesuai dengan setup di Wokwi
-Future<void> _connectToHiveMQ() async {
+// Fungsi untuk terhubung ke broker HiveMQ Cloud sesuai dengan setup di Wokwi
+  Future<void> _connectToHiveMQ() async {
     String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud'; 
-    String clientId = 'FlutterApp_${DateTime.now().millisecondsSinceEpoch}';
+    // Ambil 8 digit angka terakhir saja biar tidak kepanjangan
+    String waktu = DateTime.now().millisecondsSinceEpoch.toString();
+    String waktuPendek = waktu.substring(waktu.length - 8);
     
-    client = MqttServerClient(server, clientId);
+    // Hasilnya akan murni huruf & angka, contoh: "App4707870"
+    String clientId = 'App$waktuPendek'; 
     
-    // ======== SOLUSI ANTI BLOKIR PROVIDER SELULER ========
-    // Gunakan WebSocket (Port 8884) alih-alih TCP murni (Port 8883)
-    client!.useWebSocket = true; 
-    client!.port = 8884; 
-    // =====================================================
-
+    // Cukup panggil SATU KALI saja
+    client = MqttServerClient.withPort(server, clientId, 8883);
+    
+    // PASTIKAN WEBSOCKET DIMATIKAN
+    client!.useWebSocket = false; 
+    
     client!.secure = true; 
-    // Gunakan SecurityContext() kosong atau defaultContext
     client!.securityContext = SecurityContext.defaultContext;
-    client!.onBadCertificate = (Object cert) => true;
+    client!.onBadCertificate = (dynamic cert) => true; 
     client!.setProtocolV311(); 
     client!.logging(on: true);
     client!.keepAlivePeriod = 60;
@@ -55,20 +64,33 @@ Future<void> _connectToHiveMQ() async {
     final connMessage = MqttConnectMessage()
         .withClientIdentifier(clientId)
         .startClean(); 
-        // ❌ BARIS INI DIHAPUS: .withWillQos(MqttQos.atLeastOnce);
     
     client!.connectionMessage = connMessage;
 
-    try {
-      print('Mencoba terhubung ke HiveMQ Cloud...');
-      // Gunakan username dan password dari HiveMQ Cloud kamu
-      await client!.connect('smart_temp', 'Andyaldy13');
-    } catch (e) {
-      print('Gagal connect: $e');
-      client!.disconnect();
+    // 👉 SISTEM AUTO-RETRY (COBA 3 KALI)
+    int maksimalPercobaan = 3;
+    bool berhasilKonek = false;
+
+    for (int i = 1; i <= maksimalPercobaan; i++) {
+      try {
+        print('Mencoba terhubung ke HiveMQ (Percobaan $i dari $maksimalPercobaan)...');
+        await client!.connect('smart_temp', 'Andyaldy13');
+        berhasilKonek = true;
+        break; // Keluar dari loop jika berhasil!
+      } catch (e) {
+        print('Gagal connect pada percobaan $i: $e');
+        client!.disconnect();
+        
+        // Jika belum percobaan terakhir, tunggu 2 detik lalu coba lagi
+        if (i < maksimalPercobaan) {
+          print('Menunggu jaringan HP stabil, mencoba lagi dalam 2 detik...');
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      }
     }
 
-    if (client!.connectionStatus!.state == MqttConnectionState.connected) {
+    // Pengecekan akhir setelah proses percobaan selesai
+    if (berhasilKonek && client!.connectionStatus!.state == MqttConnectionState.connected) {
       print('🟢 BERHASIL TERHUBUNG KE HIVEMQ CLOUD!');
       setState(() {
         _isOnline = true; 
@@ -91,6 +113,20 @@ Future<void> _connectToHiveMQ() async {
         } else if (c[0].topic == 'monitor/iot/kelembapan') {
           setState(() {
             _kelembapan = double.tryParse(payload) ?? _kelembapan; 
+            
+            // Logika riwayat
+            final waktuSekarang = DateTime.now();
+            final formatWaktu = "${waktuSekarang.hour.toString().padLeft(2, '0')}:${waktuSekarang.minute.toString().padLeft(2, '0')}:${waktuSekarang.second.toString().padLeft(2, '0')}";
+            
+            _riwayatData.insert(0, {
+              'suhu': _suhu,
+              'kelembapan': _kelembapan,
+              'waktu': formatWaktu,
+            });
+
+            if (_riwayatData.length > 50) {
+              _riwayatData.removeLast();
+            }
           });
         } else if (c[0].topic == 'monitor/iot/kipas_status') {
           setState(() {
@@ -99,18 +135,36 @@ Future<void> _connectToHiveMQ() async {
         }
       });
     } else {
-      print('🔴 Koneksi gagal dengan status: ${client!.connectionStatus!.state}');
+      print('🔴 Koneksi gagal total setelah $maksimalPercobaan percobaan.');
       client!.disconnect();
       setState(() {
         _isOnline = false;
       });
     }
-}
+  }
 
   // Tombol untuk merefresh / mencoba konek ulang secara manual (Tombol Sync di atas kanan)
-  void _sinkronisasiUlang() {
+// Ubah fungsi ini menjadi async
+  void _sinkronisasiUlang() async { 
     if (client?.connectionStatus?.state != MqttConnectionState.connected) {
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mencoba menyambungkan ulang ke server...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // 👉 PENTING: Putuskan dan bersihkan socket yang menggantung terlebih dahulu!
+      if (client != null) {
+        client!.disconnect();
+        // Beri jeda sebentar agar HiveMQ menyadari bahwa kita sudah "Log Out" 
+        // secara baik-baik sebelum "Log In" kembali.
+        await Future.delayed(const Duration(milliseconds: 500)); 
+      }
+
       _connectToHiveMQ();
+      
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -119,14 +173,7 @@ Future<void> _connectToHiveMQ() async {
           backgroundColor: Colors.green,
         ),
       );
-      return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Mencoba menyambungkan ulang ke server...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 
   @override
@@ -139,7 +186,7 @@ Future<void> _connectToHiveMQ() async {
         kelembapan: _kelembapan,
         isKipasNyala: _isKipasNyala,
       ),
-      const HistoryPage(),
+      HistoryPage(riwayatData: _riwayatData),
     ];
 
     return Scaffold(

@@ -1,24 +1,37 @@
 import 'package:flutter/material.dart';
 
 class HistoryPage extends StatelessWidget {
-  const HistoryPage({super.key});
+  // Parameter ini wajib ada untuk menerima data
+  final List<Map<String, dynamic>> riwayatData;
+
+  const HistoryPage({
+    super.key,
+    required this.riwayatData,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Membuat list dummy untuk mempercantik UI
-    final List<Map<String, dynamic>> riwayatDummy = List.generate(10, (index) {
-      return {
-        'suhu': 29.0 + (index * 0.2),
-        'kelembapan': 60.0 + (index * 1.5),
-        'waktu': 'Hari ini, 10:${59 - index}',
-      };
-    });
+    if (riwayatData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history_toggle_off, size: 80, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              'Belum ada data riwayat.',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: riwayatDummy.length,
+      itemCount: riwayatData.length,
       itemBuilder: (context, index) {
-        final data = riwayatDummy[index];
+        final data = riwayatData[index];
         return Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
@@ -33,7 +46,7 @@ class HistoryPage extends StatelessWidget {
               child: const Icon(Icons.history, color: Colors.teal),
             ),
             title: Text(
-              data['waktu'],
+              data['waktu'].toString(),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             subtitle: const Text('Log Tersimpan'),
@@ -41,10 +54,14 @@ class HistoryPage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('${data['suhu'].toStringAsFixed(1)} °C',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
-                Text('${data['kelembapan'].toStringAsFixed(1)} %',
-                    style: const TextStyle(fontSize: 12, color: Colors.blue)),
+                Text(
+                  '${data['suhu']} °C',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                ),
+                Text(
+                  '${data['kelembapan']} %',
+                  style: const TextStyle(fontSize: 12, color: Colors.blue),
+                ),
               ],
             ),
           ),
