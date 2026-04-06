@@ -6,7 +6,7 @@ class SensorCard extends StatelessWidget {
   final String unit;
   final IconData icon;
   final Color iconColor;
-  final Color bgColor;
+  final Color backgroundColor;
   final Color? textColor;
 
   const SensorCard({
@@ -16,7 +16,7 @@ class SensorCard extends StatelessWidget {
     required this.unit,
     required this.icon,
     required this.iconColor,
-    this.bgColor = Colors.white,
+    this.backgroundColor = Colors.white,
     this.textColor,
   });
 
@@ -30,7 +30,7 @@ class SensorCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: backgroundColor, 
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -41,12 +41,13 @@ class SensorCard extends StatelessWidget {
           ),
         ],
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: iconColor, size: 36),
           const SizedBox(height: 16),
-          Text(title, style: TextStyle(color: finalTitleColor, fontSize: 14)),
+          Text(title, style: TextStyle(color: finalTitleColor, fontSize: 14, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,

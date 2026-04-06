@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 class HistoryPage extends StatelessWidget {
   final List<Map<String, dynamic>> riwayatData;
   final VoidCallback onDeleteAll;
+  final bool isDarkMode;
 
-  const HistoryPage({super.key, required this.riwayatData, required this.onDeleteAll});
+  const HistoryPage({super.key,
+  required this.riwayatData, 
+  required this.onDeleteAll,
+  required this.isDarkMode,
+  }
+  );
 
   @override
   Widget build(BuildContext context) {

@@ -18,6 +18,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _isKipasNyala = false;
   bool _isManualMode = false;
   List<Map<String, dynamic>> _riwayatData = [];
+  bool _isDarkMode = true;
 
   final MqttService _mqttService = MqttService();
 
@@ -114,6 +115,14 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+
+    final Color bgColor = _isDarkMode ? const Color(0xFF121212) : Colors.grey.shade50;
+    final Color bgColor1 = _isDarkMode ? const Color.fromARGB(255, 50,50, 50) : const Color.fromARGB(255, 238, 238, 238) ;
+    final Color bgColor2 = _isDarkMode ? const Color.fromARGB(255, 114, 114, 114) : const Color.fromARGB(255, 197, 219, 255) ;
+    final Color textColor = _isDarkMode ? Colors.white : Colors.black87;
+    final Color appBarColor = _isDarkMode ? const Color.fromARGB(255, 50, 50, 50) : const Color.fromARGB(255, 237, 237, 237);
+    final Color iconColor = _isDarkMode ? Colors.white : const Color.fromARGB(255, 50, 50, 50)  ;
+
     final List<Widget> daftarHalaman = [
       HomePage(
         isOnline: _isOnline,
@@ -123,19 +132,23 @@ class _MainScreenState extends State<MainScreen> {
         isManualMode: _isManualMode,
         onToggleKipas: _toggleKipasManual,
         onSetAuto: _setModeOtomatis,
+        isDarkMode: _isDarkMode,
       ),
       HistoryPage(
         riwayatData: _riwayatData,
         onDeleteAll: _clearHistory,
+        isDarkMode: _isDarkMode,
       ),
     ];
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: bgColor,
       appBar: AppBar(
+        backgroundColor: appBarColor,
+        iconTheme: IconThemeData(color: textColor),
         title: Row(
           children: [
-            const Text('Dashboard IoT', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('Dashboard IoT', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -155,6 +168,14 @@ class _MainScreenState extends State<MainScreen> {
         ),
         actions: [
           IconButton(
+            icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode, color: textColor),
+            onPressed: () {
+              setState(() {
+                _isDarkMode = !_isDarkMode; // Membalik status (true jadi false, false jadi true)
+              });
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () => _mqttService.connect(),
           ),
@@ -164,14 +185,25 @@ class _MainScreenState extends State<MainScreen> {
         duration: const Duration(milliseconds: 300),
         child: daftarHalaman[_indeksNavigasi],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _indeksNavigasi,
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          labelTextStyle: WidgetStatePropertyAll(
+            TextStyle(
+              color: textColor,
+              fontWeight: FontWeight.w500,
+            )
+          )
+        ), 
+            child: NavigationBar(
+        backgroundColor: bgColor1,
+        selectedIndex: _indeksNavigasi, indicatorColor: bgColor2,
         onDestinationSelected: (int i) => setState(() => _indeksNavigasi = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.history_outlined), label: 'History'),
+        destinations: [
+          NavigationDestination(icon: Icon(Icons.home_outlined, color: iconColor,), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.history_outlined, color: iconColor,), label: 'History'),
         ],
       ),
+      )
     );
   }
 }
