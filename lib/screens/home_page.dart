@@ -30,10 +30,7 @@ class HomePage extends StatelessWidget {
     if (!isOnline) {
       return _buildOfflineView();
     }
-
-    final Color bgColor = isDarkMode ? const Color(0xFF121212) : Colors.grey.shade50;
     final Color textColor = isDarkMode ? Colors.white : Colors.black87;
-    final Color appBarColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
 
     // Logika warna kelembapan
     Color bgColorhumid = kelembapan > 60.0 ? Colors.red.shade100 : (kelembapan >= 40.0 ? Colors.amber.shade100 : Colors.green.shade100);
