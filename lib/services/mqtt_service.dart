@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class MqttService {
   MqttServerClient? client;
@@ -8,6 +9,7 @@ class MqttService {
   // Callback untuk mengirim data ke UI (Frontend)
   Function(bool)? onConnectionStateChanged;
   Function(String, String)? onDataReceived;
+  final DatabaseReference _database = FirebaseDatabase.instance.ref();
 
 Future<void> connect() async {
     // 1. CEK STATE: Jangan lakukan apa-apa jika sedang mencoba connect
@@ -69,6 +71,15 @@ String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud';
         final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
         final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
         onDataReceived?.call(c[0].topic, payload);
+              String timestamp = DateTime.now().toIso8601String();
+        // Memisahkan nama node berdasarkan topik MQTT
+        String nodeName = clientId.split('/').last;
+        _database.child('history').child(nodeName).child(timestamp).set({
+          'nilai': payload,
+          'waktu': timestamp,
+        }).catchError((error) {
+          print("Gagal menyimpan ke Firebase: $error");
+        });
       });
     } else {
       print('MQTT: Gagal terhubung. Status: ${client!.connectionStatus!.state}');

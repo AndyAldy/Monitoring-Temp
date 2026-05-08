@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:867413260134:android:2f17fd70d81aed2761faa7",
+        "android_client_info": {
+          "package_name": "com.example.monitoring_tempe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBy5pY4Ah1jIiOBqsEGxwHsQIFBegxmYdQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:867413260134:android:e2d9a6bffa88df0c61faa7",
         "android_client_info": {
           "package_name": "com.smartfan"
