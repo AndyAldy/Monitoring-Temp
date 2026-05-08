@@ -1,4 +1,4 @@
-package com.example.monitoring_tempe
+package com.smartfan
 
 import io.flutter.embedding.android.FlutterActivity
 

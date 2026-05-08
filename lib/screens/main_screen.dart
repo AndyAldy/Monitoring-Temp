@@ -17,7 +17,7 @@ class _MainScreenState extends State<MainScreen> {
   double _kelembapan = 0.0;
   bool _isKipasNyala = false;
   bool _isManualMode = false;
-  List<Map<String, dynamic>> _riwayatData = [];
+  final List<Map<String, dynamic>> _riwayatData = [];
   bool _isDarkMode = true;
 
   final MqttService _mqttService = MqttService();

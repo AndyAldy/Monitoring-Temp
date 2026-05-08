@@ -51,7 +51,7 @@ class KipasCard extends StatelessWidget {
           ),
 Switch(
   value: isKipasNyala,
-  activeColor: Colors.white,
+  activeThumbColor: Colors.white,
   activeTrackColor: Colors.teal.shade700,
   // 👉 Saat ditekan, ia menjalankan fungsi yang dikirim dari MainScreen
   onChanged: (value) {
