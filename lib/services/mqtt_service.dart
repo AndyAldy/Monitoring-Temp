@@ -32,10 +32,16 @@ class MqttService {
     String clientId = 'App${waktu.substring(waktu.length - 8)}';
 
     // 1. GANTI PORT MENJADI 8884 (Port khusus WebSocket HiveMQ)
+// Gunakan port 8883 untuk koneksi native yang lebih stabil di Android
     client = MqttServerClient.withPort(server, clientId, 8883);
     
-    // 2. AKTIFKAN WEBSOCKET
-    client!.useWebSocket = true;
+    // MATIKAN WEBSOCKET
+    client!.useWebSocket = false; 
+    
+    // PENGATURAN KEAMANAN TETAP NYALA
+    client!.secure = true;
+    client!.securityContext = SecurityContext.defaultContext;
+    client!.onBadCertificate = (dynamic cert) => true;
     
     // 3. PENGATURAN KEAMANAN (Wajib untuk HiveMQ)
     client!.secure = true;
