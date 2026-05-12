@@ -70,13 +70,16 @@ class MqttService {
       client!.subscribe('monitor/iot/kipas_status', MqttQos.atLeastOnce);
       client!.subscribe('monitor/iot/kipas_kontrol', MqttQos.atLeastOnce);
 
-      client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
-        final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
-        final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
-        final topic = c[0].topic; // Ambil topik ke dalam variabel
+client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         
-        onDataReceived?.call(topic, payload);
-        
+        // PERBAIKAN: Gunakan perulangan (for) agar tidak ada data yang terlewat
+        for (var data in c) {
+          final MqttPublishMessage message = data.payload as MqttPublishMessage;
+          final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
+          final topic = data.topic; 
+          
+          // Kirim masing-masing topik ke UI (Main Screen)
+          onDataReceived?.call(topic, payload);
         String timestamp = DateTime.now().toIso8601String();
         
         // PERBAIKAN: Gunakan 'topic', bukan 'clientId' untuk memisahkan nama node
@@ -84,7 +87,7 @@ class MqttService {
         
         // 3. SIMPAN KE FIRESTORE
         // Strukturnya: Collection('history_sensor') -> Document('suhu') -> Collection('logs') -> Document('timestamp')
-        _firestore
+        /*_firestore
             .collection('history_sensor')
             .doc(nodeName) 
             .collection('logs')
@@ -95,7 +98,8 @@ class MqttService {
           'timestamp': FieldValue.serverTimestamp(), // Waktu asli server untuk keperluan Machine Learning
         }).catchError((error) {
           print("Gagal menyimpan ke Firestore: $error");
-        });
+        });*/
+        }
       });
     } else {
       print('MQTT: Gagal terhubung. Status: ${client!.connectionStatus!.state}');

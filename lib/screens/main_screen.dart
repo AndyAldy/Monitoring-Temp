@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/mqtt_service.dart';
+import '../firebase/firestore.dart';
 import 'home_page.dart';
 import 'history_page.dart';
 
@@ -21,6 +22,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _isDarkMode = true;
 
   final MqttService _mqttService = MqttService();
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _MainScreenState extends State<MainScreen> {
           } else if (topic == 'monitor/iot/kelembapan') {
             _kelembapan = double.tryParse(payload) ?? _kelembapan;
             _simpanKeRiwayat();
+            _firestoreService.simpanDataSensor(_suhu, _kelembapan);
           } else if (topic == 'monitor/iot/kipas_status') {
             _isKipasNyala = (payload == 'ON');
           } else if (topic == 'monitor/iot/kipas_kontrol') {
