@@ -20,7 +20,7 @@ dependencies {
 }
 
 android {
-    namespace = "com.smartfan"
+    namespace = "com.example.monitoring_tempe"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
