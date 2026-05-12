@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'smart-fan-ba8a6.firebasestorage.app',
     measurementId: 'G-VKFS9GJPRK',
   );
+
 }

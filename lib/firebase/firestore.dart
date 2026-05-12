@@ -6,10 +6,10 @@ class FirestoreService {
   // Fungsi untuk menyimpan data sensor
   Future<void> simpanDataSensor(double suhu, double kelembapan) async {
     try {
-      await _db.collection('history_sensor').add({
-        'suhu': suhu,
-        'kelembapan': kelembapan,
-        'timestamp': FieldValue.serverTimestamp(), // Waktu otomatis dari server Firebase
+      await _db.collection('id_suhu').add({
+        'Suhu': suhu,
+        'Kelembapan': kelembapan,
+        'Waktu': FieldValue.serverTimestamp(), // Waktu otomatis dari server Firebase
       });
       print("Data berhasil disimpan ke Firestore");
     } catch (e) {

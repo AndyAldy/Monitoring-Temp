@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
-import 'package:firebase_database/firebase_database.dart';
+// 1. UBAH IMPORT: Gunakan cloud_firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MqttService {
   MqttServerClient? client;
@@ -9,9 +10,11 @@ class MqttService {
   // Callback untuk mengirim data ke UI (Frontend)
   Function(bool)? onConnectionStateChanged;
   Function(String, String)? onDataReceived;
-  final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  
+  // 2. INSTANCE FIRESTORE: Gunakan FirebaseFirestore
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-Future<void> connect() async {
+  Future<void> connect() async {
     // 1. CEK STATE: Jangan lakukan apa-apa jika sedang mencoba connect
     if (client != null && client!.connectionStatus!.state == MqttConnectionState.connecting) {
       print('MQTT: Sedang mencoba terhubung, harap tunggu...');
@@ -24,7 +27,7 @@ Future<void> connect() async {
       client!.disconnect();
     }
 
-String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud';
+    String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud';
     String waktu = DateTime.now().millisecondsSinceEpoch.toString();
     String clientId = 'App${waktu.substring(waktu.length - 8)}';
 
@@ -70,15 +73,28 @@ String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud';
       client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
         final MqttPublishMessage message = c[0].payload as MqttPublishMessage;
         final payload = MqttPublishPayload.bytesToStringAsString(message.payload.message);
-        onDataReceived?.call(c[0].topic, payload);
-              String timestamp = DateTime.now().toIso8601String();
-        // Memisahkan nama node berdasarkan topik MQTT
-        String nodeName = clientId.split('/').last;
-        _database.child('history').child(nodeName).child(timestamp).set({
+        final topic = c[0].topic; // Ambil topik ke dalam variabel
+        
+        onDataReceived?.call(topic, payload);
+        
+        String timestamp = DateTime.now().toIso8601String();
+        
+        // PERBAIKAN: Gunakan 'topic', bukan 'clientId' untuk memisahkan nama node
+        String nodeName = topic.split('/').last; 
+        
+        // 3. SIMPAN KE FIRESTORE
+        // Strukturnya: Collection('history_sensor') -> Document('suhu') -> Collection('logs') -> Document('timestamp')
+        _firestore
+            .collection('history_sensor')
+            .doc(nodeName) 
+            .collection('logs')
+            .doc(timestamp)
+            .set({
           'nilai': payload,
-          'waktu': timestamp,
+          'waktu_lokal': timestamp,
+          'timestamp': FieldValue.serverTimestamp(), // Waktu asli server untuk keperluan Machine Learning
         }).catchError((error) {
-          print("Gagal menyimpan ke Firebase: $error");
+          print("Gagal menyimpan ke Firestore: $error");
         });
       });
     } else {
@@ -87,6 +103,7 @@ String server = 'a845939b5e3b46399f4ede06dfc0ee83.s1.eu.hivemq.cloud';
       client!.disconnect();
     }
   }
+
   void publish(String topic, String message) {
     if (client?.connectionStatus?.state == MqttConnectionState.connected) {
       final builder = MqttClientPayloadBuilder();
