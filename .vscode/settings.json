@@ -5,5 +5,5 @@
     "flutterTools.displayModularContextMenu": false,
     "flutterTools.displaySignalsContextMenu": false,
     "cmake.ignoreCMakeListsMissing": true,
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "disabled"
 }
