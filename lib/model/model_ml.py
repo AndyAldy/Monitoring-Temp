@@ -21,8 +21,8 @@ for doc in docs:
     if data.get('timestamp') is not None: 
         data_list.append({
             'id': doc.id,
-            'suhu': data.get('suhu'),
-            'kelembapan': data.get('kelembapan'),
+            'suhu': data.get('Suhu'),
+            'kelembapan': data.get('Kelembapan'),
             'waktu': data.get('timestamp')
         })
 
