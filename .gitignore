@@ -18,6 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
+android/app/google-services.json
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -45,3 +47,9 @@ app.*.map.json
 /android/app/release
 
 .vscode/templates
+# Firebase - Konfigurasi Android
+android/app/google-services.json
+
+# (Opsional) Jika kamu menaruh file kunci rahasia Python di dalam folder project ini, masukkan juga namanya:
+*.json
+!pubspec.lock
