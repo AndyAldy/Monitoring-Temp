@@ -138,8 +138,6 @@ class _MainScreenState extends State<MainScreen> {
         isDarkMode: _isDarkMode,
       ),
       HistoryPage(
-        riwayatData: _riwayatData,
-        onDeleteAll: _clearHistory,
         isDarkMode: _isDarkMode,
       ),
     ];

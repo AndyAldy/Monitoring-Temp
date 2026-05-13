@@ -5,7 +5,7 @@ import time
 from sklearn.ensemble import IsolationForest
 
 # 1. Inisialisasi Firebase
-cred = credentials.Certificate("smart-fan-ba8a6-firebase-adminsdk-fbsvc-c4e7a0f15c.json")
+cred = credentials.Certificate("D:\kuliah\Semester6\Sistem_Kendali\monitoring_tempe\smart-fan-ba8a6-firebase-adminsdk-fbsvc-b738c7078b.json")
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
