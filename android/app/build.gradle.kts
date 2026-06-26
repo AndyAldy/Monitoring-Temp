@@ -14,7 +14,7 @@ dependencies {
   // When using the BoM, don't specify versions in Firebase dependencies
   implementation("com.google.firebase:firebase-analytics")
   implementation("androidx.multidex:multidex:2.0.1")
-
+  implementation("org.tensorflow:tensorflow-lite-select-tf-ops:+")
 
   // Add the dependencies for any other desired Firebase products
   // https://firebase.google.com/docs/android/setup#available-libraries
@@ -23,6 +23,9 @@ dependencies {
 android {
     namespace = "com.example.monitoring_tempe"
     compileSdk = flutter.compileSdkVersion
+    aaptOptions {
+        noCompress("tflite")
+    }
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
